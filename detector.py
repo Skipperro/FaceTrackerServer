@@ -4,6 +4,7 @@ import uuid
 import json
 import time
 import threading
+import sys
 
 import onnxruntime as ort
 
@@ -13,6 +14,10 @@ face_size = 0.1
 
 exiting = False
 visualize = True
+
+for a in sys.argv[1:]:
+    if str(a).__contains__("silent") or str(a).__contains__("quiet"):
+        visualize = False
 
 class Face:
     center_x = 0.5
@@ -36,11 +41,11 @@ def camera_loop():
     global last_frame_faces, exiting, face_center_x, face_center_y, face_size, app
 
     video_capture = cv2.VideoCapture(0)
-    #video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
-    #video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 896)
+    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
+    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 896)
     #video_capture.set(cv2.CAP_PROP_FPS, 30)
-    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    #video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    #video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
     onnx_path = 'model640.onnx'
     ort_session = ort.InferenceSession(onnx_path)
@@ -49,11 +54,14 @@ def camera_loop():
     while True:
         starttime = time.time()
         ret, frame = video_capture.read()
+        if frame is None:
+            frame = cv2.imread('sample.jpg')
         if frame is not None:
+            frame = cv2.resize(frame, (640, 480))
             h, w, _ = frame.shape
 
             img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # convert bgr to rgb
-            img = cv2.resize(img, (640, 480)) # resize
+            #img = cv2.resize(img, (640, 480)) # resize
             img_mean = np.array([127, 127, 127])
             img = (img - img_mean) / 128
             img = np.transpose(img, [2, 0, 1])
@@ -118,7 +126,7 @@ def camera_loop():
             last_frame_faces = this_frame_faces
 
             if visualize:
-                cv2.imshow('Video', frame)
+                cv2.imshow('Face detector server - Hit Q to quit', frame)
         #print(time.time() - starttime)
         # Hit 'q' on the keyboard to quit!
         if exiting or cv2.waitKey(1) & 0xFF == ord('q'):
